@@ -281,7 +281,24 @@ section.active{display:flex;flex-direction:column}
 /* ── TOAST ── */
 .toast{position:fixed;bottom:2rem;right:2rem;background:var(--brown);border:1px solid var(--tan);color:var(--cream);font-size:11px;padding:.6rem 1.25rem;z-index:999;display:none;letter-spacing:.08em;border-radius:3px;box-shadow:var(--shadow);font-weight:700}
 
-@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+/* ── WARN MODAL ── */
+.warn-overlay{display:none;position:fixed;inset:0;z-index:300;background:rgba(44,24,16,.8);align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+.warn-overlay.open{display:flex}
+.warn-box{background:var(--cream);border:2px solid var(--red);border-radius:6px;padding:2rem;max-width:380px;width:92%;text-align:center;box-shadow:0 8px 32px rgba(139,26,26,.3)}
+.warn-icon{font-size:2.5rem;margin-bottom:.75rem}
+.warn-title{font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--red);margin-bottom:.5rem}
+.warn-text{font-size:13px;color:var(--text-mid);margin-bottom:1.5rem;line-height:1.6}
+.warn-countdown{font-family:'Playfair Display',serif;font-size:2.5rem;font-weight:700;color:var(--red);margin-bottom:1.25rem;line-height:1}
+.warn-bar-wrap{background:var(--cream-dark);border-radius:20px;height:6px;margin-bottom:1.5rem;overflow:hidden}
+.warn-bar{height:100%;background:var(--red);border-radius:20px;width:100%;transition:width 1s linear}
+.warn-actions{display:flex;gap:.75rem;justify-content:center}
+.warn-confirm{background:var(--red);color:white;border:none;cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:.75rem 1.5rem;border-radius:3px;font-family:'Lato',sans-serif;transition:all .2s}
+.warn-confirm:hover{background:#A02020}
+.warn-cancel{background:white;border:1.5px solid var(--border);color:var(--text-mid);cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:.75rem 1.5rem;border-radius:3px;font-family:'Lato',sans-serif;transition:all .2s}
+.warn-cancel:hover{border-color:var(--brown-mid);color:var(--brown-mid)}
+/* ── SYNC INDICATOR ── */
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-right:.35rem;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 .hero-content>*{animation:fadeUp .7s ease both}
 .hero-badge{animation-delay:.1s}.hero-title{animation-delay:.2s}.hero-sub{animation-delay:.3s}.hero-tags{animation-delay:.4s}.hero-welcome{animation-delay:.45s}.hero-btns{animation-delay:.5s}
 </style>
@@ -442,7 +459,7 @@ section.active{display:flex;flex-direction:column}
   </div>
   <div id="admin-panel" style="display:none">
     <div class="admin-topbar">
-      <div class="admin-title">Administration <span class="role-pill" id="role-pill"></span></div>
+      <div class="admin-title">Administration <span class="role-pill" id="role-pill"></span> <span class="sync-dot" title="Sync actif"></span></div>
       <div style="display:flex;gap:.5rem"><button class="btn-outline" onclick="exportCSV()">Exporter CSV</button><button class="btn-outline" onclick="showSection('login-gate')">← Quitter</button></div>
     </div>
     <div class="admin-stats" id="admin-stats-bar"></div>
@@ -537,6 +554,21 @@ section.active{display:flex;flex-direction:column}
 </div>
 <div class="toast" id="toast">✓</div>
 
+<!-- WARN MODAL -->
+<div class="warn-overlay" id="warn-overlay">
+  <div class="warn-box">
+    <div class="warn-icon">⚠️</div>
+    <div class="warn-title">Confirmer la suppression</div>
+    <div class="warn-text" id="warn-text">Cette action est irréversible.</div>
+    <div class="warn-countdown" id="warn-countdown">5</div>
+    <div class="warn-bar-wrap"><div class="warn-bar" id="warn-bar"></div></div>
+    <div class="warn-actions">
+      <button class="warn-cancel" onclick="cancelWarn()">✕ Annuler</button>
+      <button class="warn-confirm" id="warn-confirm-btn" disabled onclick="confirmWarn()">🗑 Supprimer</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const ADMIN={sandy2025:{role:'Patron',label:'👑 Patron'},shores2025:{role:'Co-Patron',label:'🔑 Co-Patron'}};
 const FREE=4000;
@@ -546,48 +578,52 @@ let companies=JSON.parse(localStorage.getItem('ltd_companies')||'[]');
 let products=JSON.parse(localStorage.getItem('ltd_products')||'null')||defaultProducts();
 
 function defaultProducts(){return[
-  {id:'creme-rose',    cat:'Boutique', icon:'🍦', name:'Creme glacee rose',      unit:'0.1', price:2},
-  {id:'creme-blanche', cat:'Boutique', icon:'🍨', name:'Creme glacee blanche',   unit:'0.1', price:2},
-  {id:'creme-fraiche', cat:'Boutique', icon:'🥛', name:'Creme fraiche',          unit:'0.2', price:2},
-  {id:'cola-zero',     cat:'Boutique', icon:'🥤', name:'Cola zero sucre',        unit:'0.3', price:4},
-  {id:'moutarde',      cat:'Boutique', icon:'🟡', name:'Moutarde',               unit:'0.2', price:2},
-  {id:'solvant',       cat:'Boutique', icon:'🧴', name:'Solvant',                unit:'0.5', price:29},
-  {id:'eponge',        cat:'Boutique', icon:'🧽', name:'Eponge pour tag',        unit:'0.3', price:1425},
-  {id:'eau',           cat:'Boutique', icon:'💧', name:'Bouteille eau',          unit:'0.3', price:9},
-  {id:'trousseau',     cat:'Boutique', icon:'🔑', name:'Trousseau de cle',       unit:'0.2', price:95},
-  {id:'portefeuille',  cat:'Boutique', icon:'👛', name:'Portefeuille',           unit:'0.1', price:10},
-  {id:'porte-doc',     cat:'Boutique', icon:'🗂',  name:'Porte document',         unit:'0.2', price:10},
-  {id:'skateboard',    cat:'Boutique', icon:'🛹', name:'Skateboard',             unit:'1.5', price:95},
-  {id:'feuille',       cat:'Boutique', icon:'🌀', name:'Feuille a rouler',       unit:'0.1', price:2},
-  {id:'spray-tag',     cat:'Boutique', icon:'🎨', name:'Spray tag',              unit:'0.4', price:2375},
-  {id:'elastique',     cat:'Boutique', icon:'🔴', name:'Elastique',              unit:'0.1', price:19},
-  {id:'bic',           cat:'Boutique', icon:'🔮', name:'Bicarbonate de soude',   unit:'0.1', price:2},
-  {id:'bonbon-cola',   cat:'Boutique', icon:'🍬', name:'Bonbon cola',            unit:'0.1', price:7},
-  {id:'bonbon-tada',   cat:'Boutique', icon:'🍭', name:'Bonbon Tada',            unit:'0.1', price:7},
-  {id:'bonbon-drag',   cat:'Boutique', icon:'🍡', name:'Bonbon Drag',            unit:'0.1', price:7},
-  {id:'bonbon',        cat:'Boutique', icon:'🍫', name:'Bonbon',                 unit:'0.1', price:7},
-  {id:'choco-cara',    cat:'Boutique', icon:'🍫', name:'Barre chocolat caramel', unit:'0.2', price:17},
-  {id:'choco-bar',     cat:'Boutique', icon:'🍫', name:'Barre chocolatee',       unit:'0.2', price:17},
-  {id:'baguette',      cat:'Boutique', icon:'🥖', name:'Baguette',               unit:'0.3', price:19},
-  {id:'pistache',      cat:'Boutique', icon:'🥜', name:'Pistache',               unit:'0.2', price:7},
-  {id:'cajou',         cat:'Boutique', icon:'🥜', name:'Noix de cajou',          unit:'0.2', price:7},
-  {id:'citron',        cat:'Boutique', icon:'🍋', name:'Brique citron',          unit:'0.3', price:15},
-  {id:'noix',          cat:'Boutique', icon:'🌰', name:'Noix',                   unit:'0.2', price:7},
-  {id:'eau-purif',     cat:'Boutique', icon:'💦', name:'Bouteille eau purifiee', unit:'0.3', price:2},
-  {id:'huile',         cat:'Vehicule', icon:'🛢',  name:'Huile',                  unit:'0.5', price:7},
-  {id:'huile-jaune',   cat:'Vehicule', icon:'🟡', name:'Huile Jaune',            unit:'0.5', price:11},
-  {id:'huile-noire',   cat:'Vehicule', icon:'⚫', name:'Huile Noir',             unit:'0.5', price:15},
-  {id:'batt-voit',     cat:'Vehicule', icon:'🔋', name:'Batterie de voiture',    unit:'0.8', price:19},
-  {id:'eponge-voit',   cat:'Vehicule', icon:'🧽', name:'Eponge pour voiture',    unit:'0.2', price:2},
-  {id:'tacos',         cat:'Craftes',  icon:'🌮', name:'Coquille a tacos',       unit:'0.2', price:25},
-  {id:'tortilla',      cat:'Craftes',  icon:'🫓', name:'Tortilla',               unit:'0.2', price:28},
-  {id:'pain',          cat:'Craftes',  icon:'🍞', name:'Tranche de pain',        unit:'0.2', price:8},
-  {id:'nouille',       cat:'Craftes',  icon:'🍜', name:'Nouille',                unit:'0.2', price:16},
-  {id:'pates',         cat:'Craftes',  icon:'🍝', name:'Pates',                  unit:'0.2', price:18},
-  {id:'pain-grille',   cat:'Craftes',  icon:'🔥', name:'Pain grille',            unit:'0.2', price:7},
-  {id:'cable-elec',    cat:'Craftes',  icon:'⚡', name:'Cable electrique',       unit:'0.5', price:49},
-  {id:'bobine',        cat:'Craftes',  icon:'🔶', name:'Bobine de cuivre',       unit:'0.5', price:30},
-  {id:'plomberie',     cat:'Craftes',  icon:'🔵', name:'Plomberie',              unit:'1.0', price:72},
+  // Alimentation
+  {id:'creme-rose',    cat:'Alimentation', icon:'🍦', name:'Creme glacee rose',      unit:'0.1', price:2},
+  {id:'creme-blanche', cat:'Alimentation', icon:'🍨', name:'Creme glacee blanche',   unit:'0.1', price:2},
+  {id:'creme-fraiche', cat:'Alimentation', icon:'🥛', name:'Creme fraiche',          unit:'0.2', price:2},
+  {id:'cola-zero',     cat:'Alimentation', icon:'🥤', name:'Cola zero sucre',        unit:'0.3', price:4},
+  {id:'bonbon-cola',   cat:'Alimentation', icon:'🍬', name:'Bonbon cola',            unit:'0.1', price:7},
+  {id:'bonbon-tada',   cat:'Alimentation', icon:'🍭', name:'Bonbon Tada',            unit:'0.1', price:7},
+  {id:'bonbon-drag',   cat:'Alimentation', icon:'🍡', name:'Bonbon Drag',            unit:'0.1', price:7},
+  {id:'bonbon',        cat:'Alimentation', icon:'🍫', name:'Bonbon',                 unit:'0.1', price:7},
+  {id:'choco-cara',    cat:'Alimentation', icon:'🍫', name:'Barre chocolat caramel', unit:'0.2', price:17},
+  {id:'choco-bar',     cat:'Alimentation', icon:'🍫', name:'Barre chocolatee',       unit:'0.2', price:17},
+  {id:'baguette',      cat:'Alimentation', icon:'🥖', name:'Baguette',               unit:'0.3', price:19},
+  {id:'pistache',      cat:'Alimentation', icon:'🥜', name:'Pistache',               unit:'0.2', price:7},
+  {id:'cajou',         cat:'Alimentation', icon:'🥜', name:'Noix de cajou',          unit:'0.2', price:7},
+  {id:'citron',        cat:'Alimentation', icon:'🍋', name:'Brique citron',          unit:'0.3', price:15},
+  {id:'noix',          cat:'Alimentation', icon:'🌰', name:'Noix',                   unit:'0.2', price:7},
+  {id:'moutarde',      cat:'Alimentation', icon:'🟡', name:'Moutarde',               unit:'0.2', price:2},
+  {id:'tacos',         cat:'Alimentation', icon:'🌮', name:'Coquille a tacos',       unit:'0.2', price:25},
+  {id:'tortilla',      cat:'Alimentation', icon:'🫓', name:'Tortilla',               unit:'0.2', price:28},
+  {id:'pain',          cat:'Alimentation', icon:'🍞', name:'Tranche de pain',        unit:'0.2', price:8},
+  {id:'nouille',       cat:'Alimentation', icon:'🍜', name:'Nouille',                unit:'0.2', price:16},
+  {id:'pates',         cat:'Alimentation', icon:'🍝', name:'Pates',                  unit:'0.2', price:18},
+  {id:'pain-grille',   cat:'Alimentation', icon:'🔥', name:'Pain grille',            unit:'0.2', price:7},
+  {id:'eau',           cat:'Alimentation', icon:'💧', name:'Bouteille eau',          unit:'0.3', price:9},
+  {id:'eau-purif',     cat:'Alimentation', icon:'💦', name:'Bouteille eau purifiee', unit:'0.3', price:2},
+  // Boutique
+  {id:'skateboard',    cat:'Boutique',     icon:'🛹', name:'Skateboard',             unit:'1.5', price:95},
+  {id:'trousseau',     cat:'Boutique',     icon:'🔑', name:'Trousseau de cle',       unit:'0.2', price:95},
+  {id:'portefeuille',  cat:'Boutique',     icon:'👛', name:'Portefeuille',           unit:'0.1', price:10},
+  {id:'porte-doc',     cat:'Boutique',     icon:'🗂',  name:'Porte document',         unit:'0.2', price:10},
+  {id:'feuille',       cat:'Boutique',     icon:'🌀', name:'Feuille a rouler',       unit:'0.1', price:2},
+  {id:'spray-tag',     cat:'Boutique',     icon:'🎨', name:'Spray tag',              unit:'0.4', price:2375},
+  {id:'elastique',     cat:'Boutique',     icon:'🔴', name:'Elastique',              unit:'0.1', price:19},
+  {id:'eponge',        cat:'Boutique',     icon:'🧽', name:'Eponge pour tag',        unit:'0.3', price:1425},
+  // Materiel
+  {id:'solvant',       cat:'Materiel',     icon:'🧴', name:'Solvant',                unit:'0.5', price:29},
+  {id:'bic',           cat:'Materiel',     icon:'🔮', name:'Bicarbonate de soude',   unit:'0.1', price:2},
+  {id:'cable-elec',    cat:'Materiel',     icon:'⚡', name:'Cable electrique',       unit:'0.5', price:49},
+  {id:'bobine',        cat:'Materiel',     icon:'🔶', name:'Bobine de cuivre',       unit:'0.5', price:30},
+  {id:'plomberie',     cat:'Materiel',     icon:'🔵', name:'Plomberie',              unit:'1.0', price:72},
+  // Automobile
+  {id:'huile',         cat:'Automobile',   icon:'🛢',  name:'Huile',                  unit:'0.5', price:7},
+  {id:'huile-jaune',   cat:'Automobile',   icon:'🟡', name:'Huile Jaune',            unit:'0.5', price:11},
+  {id:'huile-noire',   cat:'Automobile',   icon:'⚫', name:'Huile Noir',             unit:'0.5', price:15},
+  {id:'batt-voit',     cat:'Automobile',   icon:'🔋', name:'Batterie de voiture',    unit:'0.8', price:19},
+  {id:'eponge-voit',   cat:'Automobile',   icon:'🧽', name:'Eponge pour voiture',    unit:'0.2', price:2},
 ]}
 
 function saveP(){localStorage.setItem('ltd_products',JSON.stringify(products))}
@@ -747,7 +783,7 @@ function goStep(n){
   window.scrollTo(0,0);
 }
 
-const CAT_LABELS={Boutique:'🛒 Boutique',Vehicule:'🚗 Entretien Vehicule',Craftes:'🍽 Produits Craftes'};
+const CAT_LABELS={Alimentation:'🍔 Alimentation',Boutique:'🛒 Boutique',Materiel:'🔧 Matériel',Automobile:'🚗 Automobile'};
 
 function getPrice(pid){
   const base=products.find(p=>p.id===pid);if(!base)return 0;
@@ -969,8 +1005,9 @@ function setStatus(i,s){
 }
 function deleteOrder(i){
   if(i===null)return;
-  if(!confirm('Supprimer cette commande ?'))return;
-  orders.splice(i,1);saveO();closeModal();renderAdminStats();renderOrders();
+  showWarn('Supprimer la commande '+orders[i].id+' ? Elle restera visible dans l\'espace entreprise.',()=>{
+    orders.splice(i,1);saveO();closeModal();renderAdminStats();renderOrders();showToast('✓ Commande supprimée');
+  });
 }
 function exportCSV(){
   const h='ID,Entreprise,Tel,IBAN,Adresse,Date,Horaire,Produits,Poids,Total,Statut\n';
@@ -1022,7 +1059,11 @@ function addProduct(){
   saveP();['new-icon','new-name','new-unit','new-price'].forEach(id=>document.getElementById(id).value='');
   renderProductsAdmin();
 }
-function deleteProduct(i){if(!confirm('Supprimer "'+products[i].name+'" ?'))return;products.splice(i,1);saveP();renderProductsAdmin()}
+function deleteProduct(i){
+  showWarn('Supprimer "'+products[i].name+'" du catalogue ? Cette action est irréversible.',()=>{
+    products.splice(i,1);saveP();renderProductsAdmin();showToast('✓ Produit supprimé');
+  });
+}
 function openEditProduct(i){
   editProdIdx=i;const p=products[i];
   ['icon','name','unit','price'].forEach(f=>document.getElementById('ep-'+f).value=p[f]);
@@ -1075,7 +1116,11 @@ function createCompany(){
 }
 function resetPW(i){const pw=genPW();companies[i].password=pw;saveC();renderCompanies();showToast('✓ Nouveau mdp : '+pw)}
 function toggleCo(i){companies[i].active=companies[i].active===false;saveC();renderCompanies()}
-function deleteCo(i){if(!confirm('Supprimer "'+companies[i].name+'" ?'))return;companies.splice(i,1);saveC();renderCompanies()}
+function deleteCo(i){
+  showWarn('Supprimer l\'entreprise "'+companies[i].name+'" et tout son historique ?',()=>{
+    companies.splice(i,1);saveC();renderCompanies();showToast('✓ Entreprise supprimée');
+  });
+}
 
 function openPriceModal(i){
   editCoIdx=i;const co=companies[i];
@@ -1133,7 +1178,88 @@ function closePriceModal(){document.getElementById('price-modal').classList.remo
   }
 })();
 
+// ═══ WARNING SYSTEM ═══
+let warnTimer=null, warnCallback=null;
+
+function showWarn(text, cb){
+  warnCallback=cb;
+  document.getElementById('warn-text').textContent=text;
+  document.getElementById('warn-countdown').textContent='5';
+  document.getElementById('warn-bar').style.transition='none';
+  document.getElementById('warn-bar').style.width='100%';
+  document.getElementById('warn-confirm-btn').disabled=true;
+  document.getElementById('warn-overlay').classList.add('open');
+  let t=5;
+  setTimeout(()=>{
+    document.getElementById('warn-bar').style.transition='width 5s linear';
+    document.getElementById('warn-bar').style.width='0%';
+  },50);
+  warnTimer=setInterval(()=>{
+    t--;
+    const el=document.getElementById('warn-countdown');
+    if(el)el.textContent=t;
+    if(t<=0){
+      clearInterval(warnTimer);
+      const btn=document.getElementById('warn-confirm-btn');
+      if(btn){btn.disabled=false;btn.style.animation='none'}
+    }
+  },1000);
+}
+
+function cancelWarn(){
+  clearInterval(warnTimer);
+  document.getElementById('warn-overlay').classList.remove('open');
+  warnCallback=null;
+}
+
+function confirmWarn(){
+  clearInterval(warnTimer);
+  document.getElementById('warn-overlay').classList.remove('open');
+  if(warnCallback){warnCallback();warnCallback=null}
+}
+
+// ═══ REAL-TIME SYNC ═══
+let lastProductsHash='', lastOrdersHash='', syncInterval=null;
+
+function hashStr(s){
+  let h=0;
+  for(let i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0}
+  return h.toString();
+}
+
+function startSync(){
+  if(syncInterval)return;
+  syncInterval=setInterval(()=>{
+    // Sync products to catalogue if changed
+    const stored=localStorage.getItem('ltd_products');
+    const newHash=hashStr(stored||'');
+    if(newHash!==lastProductsHash){
+      lastProductsHash=newHash;
+      if(stored) products=JSON.parse(stored);
+      // Refresh catalogue if on order page
+      const orderActive=document.getElementById('order').classList.contains('active');
+      if(orderActive) buildCatalogue();
+      // Refresh admin products if open
+      const prodTab=document.getElementById('tab-products');
+      if(prodTab&&prodTab.classList.contains('active')) renderProductsAdmin();
+    }
+    // Sync orders
+    const storedO=localStorage.getItem('ltd_orders');
+    const newHashO=hashStr(storedO||'');
+    if(newHashO!==lastOrdersHash){
+      lastOrdersHash=newHashO;
+      if(storedO) orders=JSON.parse(storedO);
+      const ordTab=document.getElementById('tab-orders');
+      if(ordTab&&ordTab.classList.contains('active')){renderAdminStats();renderOrders()}
+      // Refresh dashboard if open
+      const dashActive=document.getElementById('dashboard').classList.contains('active');
+      if(dashActive&&curCo) showDashboard();
+    }
+  },5000);
+}
+
 document.getElementById('f-date').min=new Date().toISOString().split('T')[0];
+startSync();
 </script>
 </body>
 </html>
