@@ -626,9 +626,35 @@ function defaultProducts(){return[
   {id:'eponge-voit',   cat:'Automobile',   icon:'🧽', name:'Eponge pour voiture',    unit:'0.2', price:2},
 ]}
 
-function saveP(){localStorage.setItem('ltd_products',JSON.stringify(products))}
-function saveO(){localStorage.setItem('ltd_orders',JSON.stringify(orders))}
-function saveC(){localStorage.setItem('ltd_companies',JSON.stringify(companies))}
+function saveP(){
+  localStorage.setItem('ltd_products',JSON.stringify(products));
+  fetch('/api/products',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({products})}).catch(()=>{});
+}
+function saveO(){
+  localStorage.setItem('ltd_orders',JSON.stringify(orders));
+  fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orders})}).catch(()=>{});
+}
+function saveC(){
+  localStorage.setItem('ltd_companies',JSON.stringify(companies));
+  fetch('/api/companies',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({companies})}).catch(()=>{});
+}
+
+async function loadFromServer(){
+  try{
+    const res=await fetch('/api/data');
+    const data=await res.json();
+    if(data.orders) orders=data.orders;
+    if(data.companies) companies=data.companies;
+    if(data.products) products=data.products;
+    // Also update localStorage as cache
+    localStorage.setItem('ltd_orders',JSON.stringify(orders));
+    localStorage.setItem('ltd_companies',JSON.stringify(companies));
+    if(data.products) localStorage.setItem('ltd_products',JSON.stringify(products));
+  }catch(e){
+    // Fallback to localStorage if server unavailable
+    console.warn('Server unavailable, using local cache');
+  }
+}
 function genPW(){const c='ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#';let p='';for(let i=0;i<10;i++)p+=c[Math.floor(Math.random()*c.length)];return p}
 function genId(){return 'co_'+Date.now()+'_'+Math.random().toString(36).substr(2,4)}
 function showToast(m){const t=document.getElementById('toast');t.textContent=m||'Done';t.style.display='block';setTimeout(()=>t.style.display='none',2200)}
@@ -1153,7 +1179,10 @@ function savePrices(){
 function closePriceModal(){document.getElementById('price-modal').classList.remove('open');editCoIdx=null}
 
 // SESSION RESTORE
-(function(){
+(async function(){
+  // Load fresh data from server first
+  await loadFromServer();
+
   const savedRole=sessionStorage.getItem('ltd_role');
   const savedCo=sessionStorage.getItem('ltd_company');
   document.getElementById('btn-admin-nav').style.display='block';
@@ -1219,43 +1248,32 @@ function confirmWarn(){
 }
 
 // ═══ REAL-TIME SYNC ═══
-let lastProductsHash='', lastOrdersHash='', syncInterval=null;
+let syncInterval=null;
 
-function hashStr(s){
-  let h=0;
-  for(let i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0}
-  return h.toString();
+async function syncFromServer(){
+  try{
+    const res=await fetch('/api/data');
+    const data=await res.json();
+    let changed=false;
+    if(data.orders&&JSON.stringify(data.orders)!==JSON.stringify(orders)){orders=data.orders;changed=true}
+    if(data.companies&&JSON.stringify(data.companies)!==JSON.stringify(companies)){companies=data.companies;changed=true}
+    if(data.products&&JSON.stringify(data.products)!==JSON.stringify(products)){products=data.products;changed=true}
+    if(changed){
+      const orderActive=document.getElementById('order').classList.contains('active');
+      if(orderActive) buildCatalogue();
+      const prodTab=document.getElementById('tab-products');
+      if(prodTab&&prodTab.classList.contains('active')) renderProductsAdmin();
+      const ordTab=document.getElementById('tab-orders');
+      if(ordTab&&ordTab.classList.contains('active')){renderAdminStats();renderOrders()}
+      const dashActive=document.getElementById('dashboard').classList.contains('active');
+      if(dashActive&&curCo) showDashboard();
+    }
+  }catch(e){}
 }
 
 function startSync(){
   if(syncInterval)return;
-  syncInterval=setInterval(()=>{
-    // Sync products to catalogue if changed
-    const stored=localStorage.getItem('ltd_products');
-    const newHash=hashStr(stored||'');
-    if(newHash!==lastProductsHash){
-      lastProductsHash=newHash;
-      if(stored) products=JSON.parse(stored);
-      // Refresh catalogue if on order page
-      const orderActive=document.getElementById('order').classList.contains('active');
-      if(orderActive) buildCatalogue();
-      // Refresh admin products if open
-      const prodTab=document.getElementById('tab-products');
-      if(prodTab&&prodTab.classList.contains('active')) renderProductsAdmin();
-    }
-    // Sync orders
-    const storedO=localStorage.getItem('ltd_orders');
-    const newHashO=hashStr(storedO||'');
-    if(newHashO!==lastOrdersHash){
-      lastOrdersHash=newHashO;
-      if(storedO) orders=JSON.parse(storedO);
-      const ordTab=document.getElementById('tab-orders');
-      if(ordTab&&ordTab.classList.contains('active')){renderAdminStats();renderOrders()}
-      // Refresh dashboard if open
-      const dashActive=document.getElementById('dashboard').classList.contains('active');
-      if(dashActive&&curCo) showDashboard();
-    }
-  },5000);
+  syncInterval=setInterval(syncFromServer, 5000);
 }
 
 document.getElementById('f-date').min=new Date().toISOString().split('T')[0];
