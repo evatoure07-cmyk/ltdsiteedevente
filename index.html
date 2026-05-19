@@ -515,10 +515,10 @@ section.active{display:flex;flex-direction:column}
     <div class="modal-header"><h3 class="modal-title" id="modal-title">Détail commande</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
     <div id="modal-body"></div>
     <div class="modal-actions">
-      <button class="btn-outline" onclick="setStatus(currentModal,'pending')">⏳ En attente</button>
-      <button class="btn-outline" style="border-color:rgba(46,125,79,.4);color:var(--green)" onclick="setStatus(currentModal,'done')">✓ Livrée</button>
-      <button class="btn-danger" onclick="setStatus(currentModal,'cancel')">✕ Annuler</button>
-      <button class="btn-danger" style="margin-left:auto;opacity:.7" onclick="deleteOrder(currentModal)">🗑 Supprimer</button>
+      <button class="btn-outline" onclick="setStatus(curModal,'pending')">⏳ En attente</button>
+      <button class="btn-outline" style="border-color:rgba(46,125,79,.4);color:var(--green)" onclick="setStatus(curModal,'done')">✓ Livrée</button>
+      <button class="btn-danger" onclick="setStatus(curModal,'cancel')">✕ Annuler</button>
+      <button class="btn-danger" style="margin-left:auto;opacity:.7" onclick="deleteOrder(curModal)">🗑 Supprimer</button>
     </div>
   </div>
 </div>
