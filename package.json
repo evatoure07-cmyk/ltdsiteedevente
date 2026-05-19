@@ -1,0 +1,12 @@
+{
+  "name": "ltd-sandy-shores",
+  "version": "1.0.0",
+  "description": "LTD Sandy Shores - Espace Particulier",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
