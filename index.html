@@ -834,7 +834,10 @@ function buildCatalogue(){
         <div class="p-price">$${price}</div>
         <div class="qty-ctrl">
           <button class="qty-btn" onclick="changeQty('${p.id}',-1)">−</button>
-          <span class="qty-num" id="qty-${p.id}">${qty[p.id]||0}</span>
+          <input type="number" min="0" value="${qty[p.id]||0}" id="qty-${p.id}" 
+            style="width:48px;text-align:center;border:1.5px solid var(--border);border-radius:3px;padding:.2rem;font-size:13px;font-weight:700;font-family:'Lato',sans-serif;color:var(--text);background:white;outline:none"
+            oninput="setQty('${p.id}',this.value)"
+            onfocus="this.select()">
           <button class="qty-btn" onclick="changeQty('${p.id}',1)">+</button>
         </div>
       </div>`;
@@ -845,10 +848,20 @@ function buildCatalogue(){
   Object.entries(qty).forEach(([id,q])=>{if(q>0)document.getElementById('card-'+id)?.classList.add('has-qty')});
 }
 
+function setQty(id,val){
+  const n=Math.max(0,parseInt(val)||0);
+  qty[id]=n;
+  const inp=document.getElementById('qty-'+id);
+  if(inp)inp.value=n;
+  document.getElementById('card-'+id)?.classList.toggle('has-qty',n>0);
+  updateTotal();
+}
 function changeQty(id,d){
-  qty[id]=Math.max(0,(qty[id]||0)+d);
-  const el=document.getElementById('qty-'+id);if(el)el.textContent=qty[id];
-  document.getElementById('card-'+id)?.classList.toggle('has-qty',qty[id]>0);
+  const n=Math.max(0,(qty[id]||0)+d);
+  qty[id]=n;
+  const inp=document.getElementById('qty-'+id);
+  if(inp)inp.value=n;
+  document.getElementById('card-'+id)?.classList.toggle('has-qty',n>0);
   updateTotal();
 }
 function getTotal(){return products.reduce((s,p)=>s+(qty[p.id]||0)*getPrice(p.id),0)}
