@@ -572,9 +572,19 @@ section.active{display:flex;flex-direction:column}
 <script>
 const ADMIN={sandy2025:{role:'Patron',label:'👑 Patron'},shores2025:{role:'Co-Patron',label:'🔑 Co-Patron'}};
 const FREE=4000;
+
+// Entreprises permanentes — toujours présentes même après redéploiement
+const DEFAULT_COMPANIES=[
+  {id:'co_rexdiner',name:'rexdiner',password:'YS3U3GDzBB',note:'',customPrices:{},active:true,createdAt:'21/05/2026',permanent:true},
+];
+
 let admRole=null,curCo=null,curModal=null,editProdIdx=null,editCoIdx=null,qty={};
 let orders=JSON.parse(localStorage.getItem('ltd_orders')||'[]');
 let companies=JSON.parse(localStorage.getItem('ltd_companies')||'[]');
+// Merge permanent companies — always ensure they exist
+DEFAULT_COMPANIES.forEach(def=>{
+  if(!companies.find(c=>c.id===def.id)) companies.push({...def});
+});
 let products=JSON.parse(localStorage.getItem('ltd_products')||'null')||defaultProducts();
 
 function defaultProducts(){return[
@@ -644,14 +654,18 @@ async function loadFromServer(){
     const res=await fetch('/api/data');
     const data=await res.json();
     if(data.orders) orders=data.orders;
-    if(data.companies) companies=data.companies;
+    if(data.companies){
+      companies=data.companies;
+      // Always ensure permanent companies exist
+      DEFAULT_COMPANIES.forEach(def=>{
+        if(!companies.find(c=>c.id===def.id)) companies.push({...def});
+      });
+    }
     if(data.products) products=data.products;
-    // Also update localStorage as cache
     localStorage.setItem('ltd_orders',JSON.stringify(orders));
     localStorage.setItem('ltd_companies',JSON.stringify(companies));
     if(data.products) localStorage.setItem('ltd_products',JSON.stringify(products));
   }catch(e){
-    // Fallback to localStorage if server unavailable
     console.warn('Server unavailable, using local cache');
   }
 }
