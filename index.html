@@ -637,16 +637,23 @@ function defaultProducts(){return[
 ]}
 
 function saveP(){
+  products=products;
   localStorage.setItem('ltd_products',JSON.stringify(products));
-  fetch('/api/products',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({products})}).catch(()=>{});
+  pushToServer();
 }
 function saveO(){
   localStorage.setItem('ltd_orders',JSON.stringify(orders));
-  fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orders})}).catch(()=>{});
+  pushToServer();
 }
 function saveC(){
   localStorage.setItem('ltd_companies',JSON.stringify(companies));
-  fetch('/api/companies',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({companies})}).catch(()=>{});
+  pushToServer();
+}
+
+function pushToServer(){
+  fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({orders,companies,products})
+  }).catch(()=>{});
 }
 
 async function loadFromServer(){

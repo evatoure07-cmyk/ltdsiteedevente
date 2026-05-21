@@ -1,59 +1,41 @@
 const express = require('express');
 const path = require('path');
-const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 const DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1502286069662613696/oxQCTg6buRmGof7FsQg6X0E1q5cwpIbkKkZQPtiwdgkBvILyZtRNg4hyyx-GaGtqANfj';
-
-// Data file path - persist on server
-const DATA_FILE = path.join(__dirname, 'data.json');
-
-function loadData() {
-  try {
-    if (fs.existsSync(DATA_FILE)) {
-      return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    }
-  } catch(e) {}
-  return { orders: [], companies: [], products: null };
-}
-
-function saveData(data) {
-  try { fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2)); } catch(e) {}
-}
-
-let db = loadData();
+const JS_GET = 'https://api.jsonstorage.net/v1/json/2f2bc2b0-9d3a-4d2e-b3b3-517b33ed9011/d17176bc-b948-4513-9617-d9531eb9febe';
+const JS_PUT = 'https://api.jsonstorage.net/v1/json/2f2bc2b0-9d3a-4d2e-b3b3-517b33ed9011/d17176bc-b948-4513-9617-d9531eb9febe?apiKey=b34dac67-5c67-4ddd-8ed4-e0337941bfdb';
 
 app.use(express.json({ limit: '5mb' }));
 app.use(express.static(path.join(__dirname)));
 
-// ── GET all data (sync) ──
-app.get('/api/data', (req, res) => {
-  res.json({ orders: db.orders, companies: db.companies, products: db.products });
+// GET data from JsonStorage
+app.get('/api/data', async (req, res) => {
+  try {
+    const r = await fetch(JS_GET);
+    const data = await r.json();
+    res.json(data);
+  } catch(e) {
+    res.json({ orders: [], companies: [], products: null });
+  }
 });
 
-// ── SAVE orders ──
-app.post('/api/orders', (req, res) => {
-  db.orders = req.body.orders || db.orders;
-  saveData(db);
-  res.json({ ok: true });
+// SAVE all data to JsonStorage
+app.post('/api/save', async (req, res) => {
+  try {
+    await fetch(JS_PUT, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body)
+    });
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ ok: false });
+  }
 });
 
-// ── SAVE companies ──
-app.post('/api/companies', (req, res) => {
-  db.companies = req.body.companies || db.companies;
-  saveData(db);
-  res.json({ ok: true });
-});
-
-// ── SAVE products ──
-app.post('/api/products', (req, res) => {
-  db.products = req.body.products || db.products;
-  saveData(db);
-  res.json({ ok: true });
-});
-
-// ── Discord notify ──
+// Discord notify
 app.post('/api/notify', async (req, res) => {
   try {
     const order = req.body;
@@ -81,7 +63,7 @@ app.post('/api/notify', async (req, res) => {
     await fetch(DISCORD_WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(embed) });
     res.json({ ok: true });
   } catch(e) {
-    res.status(500).json({ ok: false, error: e.message });
+    res.status(500).json({ ok: false });
   }
 });
 
